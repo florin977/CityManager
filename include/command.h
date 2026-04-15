@@ -1,0 +1,69 @@
+#ifndef __COMMAND__
+#define __COMMAND__
+
+#include <errno.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/stat.h>
+
+typedef enum ROLE {
+  MANAGER,
+  INSPECTOR,
+} ROLE;
+
+typedef enum COMMAND_TYPE {
+  ADD,
+  LIST,
+  VIEW,
+  REMOVE_REPORT,
+  ADD_REPORT,
+  UPDATE_TRESHOLD,
+  FILTER,
+} COMMAND_TYPE;
+
+typedef struct GPS_COORDS {
+  float lat;
+  float lng;
+} GPS_COORDS;
+
+typedef struct REPORT_DATA {
+  GPS_COORDS coords;
+  time_t timestamp;
+  int severity_level;
+  int report_id;
+  // Inspector name is alredy in the command
+  char issue_category[30];
+  char description[200];
+} REPORT_DATA;
+
+typedef union COMMAND_ARGS {
+  int treshold_value;
+  char district_id[30];
+  char report_id[30];
+  char filter_condition[200];
+  REPORT_DATA report_data;
+} COMMAND_ARGS;
+
+typedef struct COMMAND {
+  ROLE role;
+  COMMAND_TYPE type;
+  COMMAND_ARGS args;
+  char username[30];
+} COMMAND;
+
+void get_role(COMMAND *command, char *s);
+void get_username(COMMAND *command, char *s);
+void get_type(COMMAND *command, char *s);
+
+void execute_add(COMMAND *command, int argc, char **argv);
+void execute_list(COMMAND *command, int argc, char **argv);
+void execute_view(COMMAND *command, int argc, char **argv);
+void execute_remove_report(COMMAND *command, int argc, char **argv);
+void execute_add_report(COMMAND *command, int argc, char **argv);
+void execute_update_treshold(COMMAND *command, int argc, char **argv);
+void execute_filter(COMMAND *command, int argc, char **argv);
+void execute(COMMAND *command, int argc, char **argv);
+
+#endif
