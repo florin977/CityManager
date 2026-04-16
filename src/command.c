@@ -1,6 +1,4 @@
 #include "../include/command.h"
-#include <asm-generic/errno-base.h>
-#include <fcntl.h>
 #include <stdio.h>
 #include <sys/stat.h>
 
@@ -12,6 +10,22 @@ void get_role(COMMAND *command, char *s) {
   } else {
     fprintf(stderr, "Invalid user role! Valid roles are: inspector; manager\n");
     exit(-1);
+  }
+}
+
+void get_permissions(COMMAND *command) {
+  switch (command->role) {
+  case MANAGER:
+    command->permission.READ_BIT = S_IRUSR;
+    command->permission.WRITE_BIT = S_IWUSR;
+    command->permission.EXECUTE_BIT = S_IXUSR;
+    break;
+
+  case INSPECTOR:
+    command->permission.READ_BIT = S_IRGRP;
+    command->permission.WRITE_BIT = S_IWGRP;
+    command->permission.EXECUTE_BIT = S_IXGRP;
+    break;
   }
 }
 
@@ -74,6 +88,12 @@ void create_file(const char *pathname, mode_t mode) {
 int check_file_permission(COMMAND *command, char *arg) {
   switch (command->type) {
   case ADD:
+    // Check that we can write to the reports.dat file;
+    char path[256];
+    sprintf(path, "%s/reports.dat", arg);
+    struct stat sb;
+    stat(path, &sb);
+    return (sb.st_mode & command->permission.WRITE_BIT);
     break;
 
   case LIST:
@@ -95,9 +115,53 @@ int check_file_permission(COMMAND *command, char *arg) {
   return 0;
 }
 
+void get_report_data(COMMAND *command) {
+  printf("Please enter the report data:\nX: ");
+  if (scanf("%f", &command->args.report_data.coords.lat) != 1) {
+    fprintf(stderr, "Invalid latitude\n");
+    exit(-1);
+  }
+
+  printf("Y: ");
+  if (scanf("%f", &command->args.report_data.coords.lng) != 1) {
+    fprintf(stderr, "Invalid longitutde\n");
+    exit(-1);
+  }
+
+  printf("Category (road/ligthing/flooding/other): ");
+  if (scanf("%29s", command->args.report_data.issue_category) != 1) {
+    fprintf(stderr, "Invalid category\n");
+    exit(-1);
+  }
+
+  printf("Severity lvel(1/2/3): ");
+  if (scanf("%d", &command->args.report_data.severity_level) != 1) {
+    fprintf(stderr, "Invalid severity level\n");
+    exit(-1);
+  }
+  // Consume newline
+  fgetc(stdin);
+
+  printf("Descriprtion: ");
+  if (fgets(command->args.report_data.description, 200, stdin) == NULL) {
+    fprintf(stderr, "Invalid description\n");
+    exit(-1);
+  }
+}
+
+void write_report(COMMAND *command, char *district) {
+  FILE *reports_dat = NULL;
+  char path[256];
+  sprintf(path, "%s/reports.dat", district);
+  if ((reports_dat = fopen(path, "wb")) == NULL) {
+    perror(path);
+    exit(-1);
+  }
+}
+
 // TODO: Implement these
 void execute_add(COMMAND *command, int argc, char **argv) {
-  // Create district directory and change the mdoe if it exists
+  // Create district directory and change the mode if it exists
   if (mkdir(argv[0], 0750)) {
     if (errno == EEXIST) {
       chmod(argv[0], 0750);
@@ -115,6 +179,14 @@ void execute_add(COMMAND *command, int argc, char **argv) {
 
   snprintf(path, 255, "%s/logged_district", argv[0]);
   create_file(path, 0644);
+
+  get_report_data(command);
+
+  if (check_file_permission(command, argv[0])) {
+    // TODO: Write to the files
+  } else {
+    fprintf(stderr, "You do not have permissions to write to this file\n");
+  }
 }
 
 void execute_list(COMMAND *command, int argc, char **argv) {}
@@ -135,19 +207,14 @@ void execute(COMMAND *command, int argc, char **argv) {
   switch (command->type) {
   case ADD:
     // Create the directory and files, then ask for the first report. Subsequent
-    // calls on the same district just ask for the new report entry.
+    // calls on the same district should exit, since we do not have a report id
+    // (first report gets the id 1 by default)
     if (argc != 1) {
       fprintf(stderr, "Invalid argument count for the ADD command\n");
       exit(-1);
     }
 
-    if (!check_file_permission(command, argv[0])) {
-      fprintf(stderr, "You do not have permissions to execute this command!\n");
-
-    } else {
-      execute_add(command, argc, argv);
-    }
-
+    execute_add(command, argc, argv);
     break;
 
   case LIST:

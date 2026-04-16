@@ -1,6 +1,7 @@
 #ifndef __COMMAND__
 #define __COMMAND__
 
+#include <asm-generic/errno-base.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -45,17 +46,27 @@ typedef union COMMAND_ARGS {
   REPORT_DATA report_data;
 } COMMAND_ARGS;
 
+typedef struct ROLE_BITS {
+  mode_t READ_BIT;
+  mode_t WRITE_BIT;
+  mode_t EXECUTE_BIT;
+} ROLE_BITS;
+
 typedef struct COMMAND {
   ROLE role;
+  ROLE_BITS permission;
   COMMAND_TYPE type;
   COMMAND_ARGS args;
   char username[30];
 } COMMAND;
 
 void get_role(COMMAND *command, char *s);
+void get_permissions(COMMAND *command);
 void get_username(COMMAND *command, char *s);
 void get_type(COMMAND *command, char *s);
+void get_report_data(COMMAND *command);
 
+void write_report(COMMAND *command, char *district);
 void execute_add(COMMAND *command, int argc, char **argv);
 void execute_list(COMMAND *command, int argc, char **argv);
 void execute_view(COMMAND *command, int argc, char **argv);
