@@ -16,7 +16,11 @@ int main(int argc, char **argv) {
     exit(-1);
   }
 
-  COMMAND command;
+  // Fill the struct with 0s, else the write using sizeof() in write_report will
+  // cause a stack memory leak and show actual stack pointers, leading to the
+  // same vulnerability the heartbleed bug used.
+  COMMAND command = {0};
+
   get_role(&command, argv[2]);
   get_permissions(&command);
   get_username(&command, argv[4]);

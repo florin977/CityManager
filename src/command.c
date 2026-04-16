@@ -1,6 +1,9 @@
 #include "../include/command.h"
+#include <fcntl.h>
 #include <stdio.h>
+#include <string.h>
 #include <sys/stat.h>
+#include <time.h>
 
 void get_role(COMMAND *command, char *s) {
   if (!strcmp(s, "inspector")) {
@@ -128,7 +131,7 @@ void get_report_data(COMMAND *command) {
     exit(-1);
   }
 
-  printf("Category (road/ligthing/flooding/other): ");
+  printf("Category (road/lighting/flooding/other): ");
   if (scanf("%29s", command->args.report_data.issue_category) != 1) {
     fprintf(stderr, "Invalid category\n");
     exit(-1);
@@ -147,16 +150,85 @@ void get_report_data(COMMAND *command) {
     fprintf(stderr, "Invalid description\n");
     exit(-1);
   }
+
+  // get rid of the newline at the end
+  command->args.report_data
+      .description[strlen(command->args.report_data.description) - 1] = 0;
+
+  strcpy(command->args.report_data.username, command->username);
 }
 
 void write_report(COMMAND *command, char *district) {
-  FILE *reports_dat = NULL;
+  // Open the reports.dat file (-1 on error)
+  int reports_dat = -1;
   char path[256];
   sprintf(path, "%s/reports.dat", district);
-  if ((reports_dat = fopen(path, "wb")) == NULL) {
+  if ((reports_dat = open(path, O_APPEND | O_WRONLY)) == -1) {
     perror(path);
     exit(-1);
   }
+
+  // Write the data
+  // Report id is a placeholder until I figure out a way to randomise it
+  // (and keep it unique)
+  if ((write(reports_dat, &command->args.report_data.report_id, sizeof(int))) ==
+      -1) {
+    perror("Writing to reports.dat");
+    exit(-1);
+  }
+
+  // username; 1 char == 1 byte
+  // sizeof() returns exactly 30 cahracters, null terminator included. Could
+  // also work by doing strlen() + 1
+  if ((write(reports_dat, command->args.report_data.username,
+             sizeof(command->args.report_data.username))) == -1) {
+    perror("Writing to reports.dat");
+    exit(-1);
+  }
+
+  // GPS latitude
+  if ((write(reports_dat, &command->args.report_data.coords.lat,
+             sizeof(float))) == -1) {
+    perror("Writing to reports.dat");
+    exit(-1);
+  }
+
+  // GPS longitutde
+  if ((write(reports_dat, &command->args.report_data.coords.lng,
+             sizeof(float))) == -1) {
+    perror("Writing to reports.dat");
+    exit(-1);
+  }
+
+  // issue_category; 1 char == 1 byte
+  if ((write(reports_dat, command->args.report_data.issue_category,
+             sizeof(command->args.report_data.issue_category))) == -1) {
+    perror("Writing to reports.dat");
+    exit(-1);
+  }
+
+  // severity_level
+  if ((write(reports_dat, &command->args.report_data.severity_level,
+             sizeof(int))) == -1) {
+    perror("Writing to reports.dat");
+    exit(-1);
+  }
+
+  // timestamp
+  if ((write(reports_dat, &command->args.report_data.timestamp,
+             sizeof(time_t))) == -1) {
+    perror("Writing to reports.dat");
+    exit(-1);
+  }
+
+  // description
+  if ((write(reports_dat, command->args.report_data.description,
+             sizeof(command->args.report_data.description))) == -1) {
+    perror("Writing to reports.dat");
+    exit(-1);
+  }
+
+  close(reports_dat);
 }
 
 // TODO: Implement these
@@ -183,7 +255,7 @@ void execute_add(COMMAND *command, int argc, char **argv) {
   get_report_data(command);
 
   if (check_file_permission(command, argv[0])) {
-    // TODO: Write to the files
+    write_report(command, argv[0]);
   } else {
     fprintf(stderr, "You do not have permissions to write to this file\n");
   }

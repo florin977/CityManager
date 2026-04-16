@@ -1,0 +1,3 @@
+Does the structs' alignment need to be optimised or it can be ignored ?
+Should I use bulk reading to get report data? If yes, how ?
+Should I just dump the entire report_data struct in the memory and then read again the bytes or keep what I have and then hope the compiler injects the padding ?

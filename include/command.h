@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <unistd.h>
 
 typedef enum ROLE {
   MANAGER,
@@ -29,13 +30,13 @@ typedef struct GPS_COORDS {
 } GPS_COORDS;
 
 typedef struct REPORT_DATA {
+  char description[200];
+  char username[30];
+  char issue_category[30];
   GPS_COORDS coords;
   time_t timestamp;
   int severity_level;
   int report_id;
-  // Inspector name is alredy in the command
-  char issue_category[30];
-  char description[200];
 } REPORT_DATA;
 
 typedef union COMMAND_ARGS {
