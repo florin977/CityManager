@@ -52,14 +52,14 @@ void get_type(COMMAND *command, char *s) {
     command->type = VIEW;
   } else if (!strcmp(s, "--remove_report")) {
     command->type = REMOVE_REPORT;
-  } else if (!strcmp(s, "--update_treshold")) {
-    command->type = UPDATE_TRESHOLD;
+  } else if (!strcmp(s, "--update_threshold")) {
+    command->type = UPDATE_THRESHOLD;
   } else if (!strcmp(s, "--filter")) {
     command->type = FILTER;
   } else {
     fprintf(stderr,
             "Invalid command type! Supported commands are: "
-            "add;list;view;remove_report;add_report;update_treshold;filter\n");
+            "add;list;view;remove_report;add_report;update_threshold;filter\n");
     exit(-1);
   }
 }
@@ -128,7 +128,35 @@ int open_file(COMMAND *command, char *district, char *file, char *mode) {
   return fd;
 }
 
-// TODO: get the actual report id
+void print_file_info(COMMAND *command, char *district) {
+  char path[256];
+  sprintf(path, "%s/reports.dat", district);
+
+  struct stat sb;
+  stat(path, &sb);
+  mode_t mode = sb.st_mode;
+
+  char permissions[10];
+
+  permissions[0] = (mode & S_IRUSR) ? 'r' : '-';
+  permissions[1] = (mode & S_IRUSR) ? 'w' : '-';
+  permissions[2] = (mode & S_IRUSR) ? 'x' : '-';
+
+  permissions[3] = (mode & S_IRGRP) ? 'r' : '-';
+  permissions[4] = (mode & S_IRGRP) ? 'w' : '-';
+  permissions[5] = (mode & S_IRGRP) ? 'x' : '-';
+
+  permissions[6] = (mode & S_IROTH) ? 'r' : '-';
+  permissions[7] = (mode & S_IROTH) ? 'w' : '-';
+  permissions[8] = (mode & S_IROTH) ? 'x' : '-';
+
+  char time[50];
+  struct tm *time_info = localtime(&sb.st_mtime);
+  strftime(time, 49, "%b %b %H:%M", time_info);
+
+  printf("%s %ld %s %s\n", permissions, sb.st_size, time, "reports.dat");
+}
+
 int get_report_id(COMMAND *command, char *district) {
   int reports_dat = open_file(command, district, "reports.dat", "r-");
   REPORT_DATA data;
@@ -222,7 +250,7 @@ void write_logged_district(COMMAND *command, char *district) {
     break;
   }
 
-  char cmd_type[16];
+  char cmd_type[17];
   switch (command->type) {
   case ADD:
     strcpy(cmd_type, "add");
@@ -240,8 +268,8 @@ void write_logged_district(COMMAND *command, char *district) {
     strcpy(cmd_type, "remove_report");
     break;
 
-  case UPDATE_TRESHOLD:
-    strcpy(cmd_type, "update_treshold");
+  case UPDATE_THRESHOLD:
+    strcpy(cmd_type, "update_threshold");
     break;
 
   case FILTER:
@@ -249,7 +277,7 @@ void write_logged_district(COMMAND *command, char *district) {
     break;
   }
 
-  dprintf(logged_district, "%lld\t%30s\t%11s\t%15s/n", (long long)time(NULL),
+  dprintf(logged_district, "%lld\t%30s\t%11s\t%16s/n", (long long)time(NULL),
           command->username, role, cmd_type);
 
   close(logged_district);
@@ -352,9 +380,7 @@ void execute_view(COMMAND *command, char **argv) {
 
 void execute_remove_report(COMMAND *command, char **argv) {}
 
-void execute_add_report(COMMAND *command, char **argv) {}
-
-void execute_update_treshold(COMMAND *command, char **argv) {}
+void execute_update_threshold(COMMAND *command, char **argv) {}
 
 void execute_filter(COMMAND *command, char **argv) {}
 
@@ -398,13 +424,13 @@ void execute(COMMAND *command, int argc, char **argv) {
     execute_remove_report(command, argv);
     break;
 
-  case UPDATE_TRESHOLD:
+  case UPDATE_THRESHOLD:
     if (argc != 2) {
       fprintf(stderr,
-              "Invalid argument count for the UPDATE_TRESHOLD command\n");
+              "Invalid argument count for the UPDATE_THRESHOLD command\n");
       exit(-1);
     }
-    execute_update_treshold(command, argv);
+    execute_update_threshold(command, argv);
     break;
 
   case FILTER:

@@ -20,7 +20,7 @@ typedef enum COMMAND_TYPE {
   LIST,
   VIEW,
   REMOVE_REPORT,
-  UPDATE_TRESHOLD,
+  UPDATE_THRESHOLD,
   FILTER,
 } COMMAND_TYPE;
 
@@ -40,7 +40,7 @@ typedef struct REPORT_DATA {
 } REPORT_DATA;
 
 typedef union COMMAND_ARGS {
-  int treshold_value;
+  int threshold_value;
   char district_id[30];
   char report_id[30];
   char filter_condition[200];
@@ -67,14 +67,14 @@ void get_username(COMMAND *command, char *s);
 void get_type(COMMAND *command, char *s);
 int get_report_id(COMMAND *command, char *district);
 void get_report_data(COMMAND *command, char *district);
+char *format_permission_bits(COMMAND *command, char *district);
 
 void write_report(COMMAND *command, char *district);
 void execute_add(COMMAND *command, char **argv);
 void execute_list(COMMAND *command, char **argv);
 void execute_view(COMMAND *command, char **argv);
 void execute_remove_report(COMMAND *command, char **argv);
-void execute_add_report(COMMAND *command, char **argv);
-void execute_update_treshold(COMMAND *command, char **argv);
+void execute_update_threshold(COMMAND *command, char **argv);
 void execute_filter(COMMAND *command, char **argv);
 void execute(COMMAND *command, int argc, char **argv);
 
