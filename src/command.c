@@ -1,6 +1,7 @@
 #include "../include/command.h"
 #include <bits/pthreadtypes.h>
 #include <fcntl.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -105,11 +106,11 @@ int check_file_permission(COMMAND *command, char *district, char *file,
   return (r && w && x);
 }
 
-int open_file(COMMAND *command, char *district, char *file, char *mode) {
+int open_file(COMMAND *command, char *district, char *file, char *mode,
+              int flags) {
   int fd = -1;
   char path[256];
 
-  int flags = O_APPEND;
   if (mode[0] == 'r' && mode[1] == 'w') {
     flags |= O_RDWR;
   } else if (mode[0] == 'r') {
@@ -128,7 +129,7 @@ int open_file(COMMAND *command, char *district, char *file, char *mode) {
   return fd;
 }
 
-void print_file_info(COMMAND *command, char *district) {
+void print_reports_file_info(COMMAND *command, char *district) {
   char path[256];
   sprintf(path, "%s/reports.dat", district);
 
@@ -139,30 +140,29 @@ void print_file_info(COMMAND *command, char *district) {
   char permissions[10];
 
   permissions[0] = (mode & S_IRUSR) ? 'r' : '-';
-  permissions[1] = (mode & S_IRUSR) ? 'w' : '-';
-  permissions[2] = (mode & S_IRUSR) ? 'x' : '-';
+  permissions[1] = (mode & S_IWUSR) ? 'w' : '-';
+  permissions[2] = (mode & S_IXUSR) ? 'x' : '-';
 
   permissions[3] = (mode & S_IRGRP) ? 'r' : '-';
-  permissions[4] = (mode & S_IRGRP) ? 'w' : '-';
-  permissions[5] = (mode & S_IRGRP) ? 'x' : '-';
+  permissions[4] = (mode & S_IWGRP) ? 'w' : '-';
+  permissions[5] = (mode & S_IXGRP) ? 'x' : '-';
 
   permissions[6] = (mode & S_IROTH) ? 'r' : '-';
-  permissions[7] = (mode & S_IROTH) ? 'w' : '-';
-  permissions[8] = (mode & S_IROTH) ? 'x' : '-';
+  permissions[7] = (mode & S_IWOTH) ? 'w' : '-';
+  permissions[8] = (mode & S_IXOTH) ? 'x' : '-';
+  permissions[9] = 0;
 
   char time[50];
   struct tm *time_info = localtime(&sb.st_mtime);
-  strftime(time, 49, "%b %b %H:%M", time_info);
+  strftime(time, 49, "%b %d %H:%M", time_info);
 
   printf("%s %ld %s %s\n", permissions, sb.st_size, time, "reports.dat");
 }
 
 int get_report_id(COMMAND *command, char *district) {
-  int reports_dat = open_file(command, district, "reports.dat", "r-");
+  int reports_dat = open_file(command, district, "reports.dat", "r-", O_APPEND);
   REPORT_DATA data;
 
-  // WARNING: If the file is misformatted, the report would not be found, even
-  // if it exists.
   int offset = lseek(reports_dat, -sizeof(REPORT_DATA), SEEK_END);
 
   if (offset == -1) {
@@ -178,7 +178,7 @@ int get_report_id(COMMAND *command, char *district) {
 
 void write_report(COMMAND *command, char *district) {
   // Open the reports.dat file (-1 on error)
-  int reports_dat = open_file(command, district, "reports.dat", "-w");
+  int reports_dat = open_file(command, district, "reports.dat", "-w", O_APPEND);
 
   // Dump the entire struct in reports.dat (in binary)
   if ((write(reports_dat, &command->args.report_data, sizeof(REPORT_DATA))) ==
@@ -189,35 +189,44 @@ void write_report(COMMAND *command, char *district) {
 
   close(reports_dat);
 }
+// 1 on successful read, -1 on EOF or anything else.
+int get_report_by_offset(COMMAND *command, char *district, __off_t offset,
+                         REPORT_DATA *data) {
+  int reports_dat =
+      open_file(command, district, "reports.dat", "r--", O_APPEND);
 
-REPORT_DATA get_report(COMMAND *command, char *district, char *report_id) {
-  int reports_dat = open_file(command, district, "reports.dat", "r-");
-  int id = atoi(report_id);
+  if (check_file_permission(command, district, "reports.dat", "r--")) {
+    lseek(reports_dat, offset, SEEK_SET);
 
-  if (check_file_permission(command, district, "reports.dat", "r-")) {
-    REPORT_DATA data;
-    int count = 0;
-    while ((count = read(reports_dat, &data, sizeof(REPORT_DATA))) ==
-           sizeof(REPORT_DATA)) {
-      if (data.report_id == id) {
-        return data;
-      }
-    }
-
-    if (count == -1) {
-      perror("Reading from reports.dat");
-      exit(-1);
+    if (read(reports_dat, data, sizeof(REPORT_DATA)) != sizeof(REPORT_DATA)) {
+      return -1;
     }
 
   } else {
     fprintf(stderr, "Can not read reports.dat\n");
   }
 
-  REPORT_DATA not_found;
-  not_found.report_id = -1;
-  return not_found;
-
   close(reports_dat);
+
+  return 1;
+}
+
+// offset on success, -1 on failure or not found
+__off_t get_report_by_id(COMMAND *command, char *district, char *report_id,
+                         REPORT_DATA *data) {
+  int id = atoi(report_id);
+  int i = 0;
+
+  while (get_report_by_offset(command, district, i * sizeof(REPORT_DATA),
+                              data) != -1) {
+    if (data->report_id == id) {
+      return i * sizeof(REPORT_DATA);
+    }
+
+    i++;
+  }
+
+  return -1;
 }
 
 void print_report(REPORT_DATA data) {
@@ -229,7 +238,8 @@ void print_report(REPORT_DATA data) {
 }
 
 void write_district_cfg(COMMAND *command, char *district, int severity_level) {
-  int district_cfg = open_file(command, district, "district.cfg", "-w");
+  int district_cfg =
+      open_file(command, district, "district.cfg", "-w", O_APPEND);
 
   dprintf(district_cfg, "severity level=%d\n", severity_level);
 
@@ -237,7 +247,8 @@ void write_district_cfg(COMMAND *command, char *district, int severity_level) {
 }
 
 void write_logged_district(COMMAND *command, char *district) {
-  int logged_district = open_file(command, district, "logged_district", "-w");
+  int logged_district =
+      open_file(command, district, "logged_district", "-w", O_APPEND);
 
   char role[10];
   switch (command->role) {
@@ -329,6 +340,32 @@ void get_report_data(COMMAND *command, char *district) {
   strcpy(command->args.report_data.username, command->username);
 }
 
+void delete_report_from_offset(COMMAND *command, char *district, off_t offset) {
+  int reports_dat = open_file(command, district, "reports.dat", "rw-", 0);
+
+  // Get file size in bytes
+  off_t file_end = lseek(reports_dat, 0, SEEK_END);
+  // Data that needs to be shifted
+  size_t copy_size = (size_t)file_end - (offset + sizeof(REPORT_DATA));
+  char *buffer = NULL;
+
+  if ((buffer = malloc(copy_size * sizeof(char))) == NULL) {
+    perror("buffer copy malloc");
+    exit(-1);
+  }
+
+  // Place write cursor at the begining of the report needed to be deleted
+  lseek(reports_dat, offset, SEEK_SET);
+
+  write(reports_dat, buffer, copy_size);
+
+  // Delete the extra bytes
+  ftruncate(reports_dat, file_end - sizeof(REPORT_DATA));
+
+  free(buffer);
+  close(reports_dat);
+}
+
 // TODO: Implement these
 void execute_add(COMMAND *command, char **argv) {
   // Create district directory and change the mode if it exists
@@ -366,10 +403,29 @@ void execute_add(COMMAND *command, char **argv) {
   }
 }
 
-void execute_list(COMMAND *command, char **argv) {}
+void execute_list(COMMAND *command, char **argv) {
+
+  REPORT_DATA data = {0};
+  int i = 0;
+
+  while (get_report_by_offset(command, argv[0], i * sizeof(REPORT_DATA),
+                              &data) != -1) {
+    print_report(data);
+    printf("\n");
+    i++;
+  }
+
+  print_reports_file_info(command, argv[0]);
+}
 
 void execute_view(COMMAND *command, char **argv) {
-  REPORT_DATA data = get_report(command, argv[0], argv[1]);
+  if (!check_file_permission(command, argv[0], "reports.dat", "r")) {
+    fprintf(stderr, "You do not have permissions to read reports.dat\n");
+    return;
+  }
+
+  REPORT_DATA data = {0};
+  get_report_by_id(command, argv[0], argv[1], &data);
 
   if (data.report_id != -1) {
     print_report(data);
@@ -378,7 +434,17 @@ void execute_view(COMMAND *command, char **argv) {
   }
 }
 
-void execute_remove_report(COMMAND *command, char **argv) {}
+void execute_remove_report(COMMAND *command, char **argv) {
+  char *district = argv[0];
+  char *report_id = argv[1];
+  REPORT_DATA data;
+
+  off_t to_delete_from_offset =
+      get_report_by_id(command, district, report_id, &data);
+  if (to_delete_from_offset != -1) {
+    delete_report_from_offset(command, district, to_delete_from_offset);
+  }
+}
 
 void execute_update_threshold(COMMAND *command, char **argv) {}
 
