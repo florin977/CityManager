@@ -189,7 +189,7 @@ void write_report(COMMAND *command, char *district) {
 
   close(reports_dat);
 }
-// 1 on successful read, -1 on EOF or anything else.
+// report id on successful read, -1 on EOF or anything else.
 int get_report_by_offset(COMMAND *command, char *district, __off_t offset,
                          REPORT_DATA *data) {
   int reports_dat =
@@ -208,19 +208,20 @@ int get_report_by_offset(COMMAND *command, char *district, __off_t offset,
 
   close(reports_dat);
 
-  return 1;
+  return data->report_id;
 }
 
 // offset on success, -1 on failure or not found
 __off_t get_report_by_id(COMMAND *command, char *district, char *report_id,
                          REPORT_DATA *data) {
   int id = atoi(report_id);
+  int id2 = -1;
   int i = 0;
 
-  while (get_report_by_offset(command, district, i * sizeof(REPORT_DATA),
-                              data) != -1) {
-    if (data->report_id == id) {
-      return i * sizeof(REPORT_DATA);
+  while ((id2 = get_report_by_offset(command, district, i * sizeof(REPORT_DATA),
+                                     data)) != -1) {
+    if (id2 == id) {
+      return (__off_t)i * sizeof(REPORT_DATA);
     }
 
     i++;
@@ -237,11 +238,11 @@ void print_report(REPORT_DATA data) {
          data.description);
 }
 
-void write_district_cfg(COMMAND *command, char *district, int severity_level) {
-  int district_cfg =
-      open_file(command, district, "district.cfg", "-w", O_APPEND);
+void write_district_cfg(COMMAND *command, char *district, char *field,
+                        char *value) {
+  int district_cfg = open_file(command, district, "district.cfg", "-w", 0);
 
-  dprintf(district_cfg, "severity level=%d\n", severity_level);
+  dprintf(district_cfg, "%s=%s\n", field, value);
 
   close(district_cfg);
 }
@@ -354,6 +355,11 @@ void delete_report_from_offset(COMMAND *command, char *district, off_t offset) {
     exit(-1);
   }
 
+  // Copy all reports after this one
+  lseek(reports_dat, offset + sizeof(REPORT_DATA), SEEK_SET);
+
+  read(reports_dat, buffer, copy_size);
+
   // Place write cursor at the begining of the report needed to be deleted
   lseek(reports_dat, offset, SEEK_SET);
 
@@ -391,7 +397,7 @@ void execute_add(COMMAND *command, char **argv) {
 
   if (check_file_permission(command, argv[0], "district.cfg", "-w-")) {
     // 3 is the default severity level
-    write_district_cfg(command, argv[0], 3);
+    write_district_cfg(command, argv[0], "severity_level", "3");
   } else {
     fprintf(stderr, "You do not have permissions to write to this file\n");
   }
@@ -452,7 +458,6 @@ void execute_filter(COMMAND *command, char **argv) {}
 
 // these argv start right after the "--command"; argc is smaller as well.
 void execute(COMMAND *command, int argc, char **argv) {
-  // TODO: Check role using chmod in each case.
   switch (command->type) {
   case ADD:
     // Create the directory and files, then ask for the first report. Subsequent
