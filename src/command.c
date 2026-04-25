@@ -1,4 +1,5 @@
 #include "../include/command.h"
+#include <asm-generic/errno-base.h>
 #include <bits/pthreadtypes.h>
 #include <fcntl.h>
 #include <stddef.h>
@@ -107,10 +108,46 @@ int check_file_permission(COMMAND *command, char *district, char *file,
   return (r && w && x);
 }
 
+// -1 if file is missing, 0 on success
+int check_symlink(const char *filepath) {
+  struct stat link_stat;
+  struct stat target_stat;
+
+  if (lstat(filepath, &link_stat) == 0) {
+    if (S_ISLNK(link_stat.st_mode)) {
+      if (stat(filepath, &target_stat) != 0) {
+        if (errno == ENOENT) {
+          fprintf(
+              stderr,
+              "WARNING: Dangling link detected at '%s'. Target is missing.\n",
+              filepath);
+          return -1;
+        } else {
+          perror("Stat failed for an unexpected reason");
+          return -1;
+        }
+      }
+    }
+  }
+
+  return 0;
+}
+
 int open_file(COMMAND *command, char *district, char *file, char *mode,
               int flags) {
+  char target_path[256];
+  int is_report = (strcmp(file, "reports.dat") == 0);
+
+  if (is_report) {
+    sprintf(target_path, "./active_reports-%s", district);
+    if (check_symlink(target_path) == -1) {
+      return -1;
+    }
+  } else {
+    sprintf(target_path, "./%s/%s", district, file);
+  }
+
   int fd = -1;
-  char path[256];
 
   if (mode[0] == 'r' && mode[1] == 'w') {
     flags |= O_RDWR;
@@ -120,11 +157,9 @@ int open_file(COMMAND *command, char *district, char *file, char *mode,
     flags |= O_WRONLY;
   }
 
-  sprintf(path, "%s/%s", district, file);
-
-  if ((fd = open(path, flags)) == -1) {
-    perror(path);
-    exit(-1);
+  if ((fd = open(target_path, flags)) == -1) {
+    perror(target_path);
+    return -1;
   }
 
   return fd;
@@ -633,7 +668,17 @@ int match_condition(REPORT_DATA *r, const char *field, const char *op,
   return 0;
 }
 
-// TODO: Implement these
+void create_symlink(const char *target, const char *linkpath) {
+  if (symlink(target, linkpath) != 0) {
+    if (errno == EEXIST) {
+      return;
+    }
+
+    perror("Symlink creation error");
+    exit(-1);
+  }
+}
+
 void execute_add(COMMAND *command, char **argv) {
   // Create district directory and change the mode if it exists
   if (mkdir(argv[0], 0750)) {
@@ -647,6 +692,13 @@ void execute_add(COMMAND *command, char **argv) {
   create_file(argv[0], "reports.dat", 0664);
   create_file(argv[0], "district.cfg", 0640);
   create_file(argv[0], "logged_district", 0644);
+
+  char target_path[256];
+  char link_path[256];
+  sprintf(target_path, "./%s/reports.dat", argv[0]);
+  sprintf(link_path, "./active_reports-%s", argv[0]);
+
+  create_symlink(target_path, link_path);
 
   get_report_data(command, argv[0]);
 
@@ -717,15 +769,42 @@ void execute_update_threshold(COMMAND *command, char **argv) {
   update_parameter(command, argv[0], "severity_level", argv[1]);
 }
 
-void execute_filter(COMMAND *command, char **argv) {}
+void execute_filter(COMMAND *command, int argc, char **argv) {
+  REPORT_DATA data;
+  int i = 0;
+
+  char field[MAX_FIELD_LENGTH];
+  char op[MAX_OP_LENGTH];
+  char value[MAX_VAL_LENGTH];
+
+  while (get_report_by_offset(command, argv[0], i * sizeof(REPORT_DATA),
+                              &data) != -1) {
+    int conditions_met = 1;
+
+    for (int i = 1; i < argc; i++) {
+      parse_condition(argv[i], field, op, value);
+
+      if (!match_condition(&data, field, op, value)) {
+        conditions_met = 0;
+        break;
+      }
+    }
+
+    if (conditions_met) {
+      print_report(data);
+    }
+
+    i++;
+  }
+}
 
 // these argv start right after the "--command"; argc is smaller as well.
 void execute(COMMAND *command, int argc, char **argv) {
   switch (command->type) {
   case ADD:
-    // Create the directory and files, then ask for the first report. Subsequent
-    // calls on the same district should exit, since we do not have a report id
-    // (first report gets the id 1 by default)
+    // Create the directory and files, then ask for the first report.
+    // Subsequent calls on the same district should exit, since we do not have
+    // a report id (first report gets the id 1 by default)
     if (argc != 1) {
       fprintf(stderr, "Invalid argument count for the ADD command\n");
       exit(-1);
@@ -768,11 +847,11 @@ void execute(COMMAND *command, int argc, char **argv) {
     break;
 
   case FILTER:
-    if (argc != 2) {
+    if (argc < 2) {
       fprintf(stderr, "Invalid argument count for the FILTER command\n");
       exit(-1);
     }
-    execute_filter(command, argv);
+    execute_filter(command, argc, argv);
     break;
   }
 }

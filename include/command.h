@@ -79,7 +79,7 @@ void execute_list(COMMAND *command, char **argv);
 void execute_view(COMMAND *command, char **argv);
 void execute_remove_report(COMMAND *command, char **argv);
 void execute_update_threshold(COMMAND *command, char **argv);
-void execute_filter(COMMAND *command, char **argv);
+void execute_filter(COMMAND *command, int argc, char **argv);
 void execute(COMMAND *command, int argc, char **argv);
 
 #endif
