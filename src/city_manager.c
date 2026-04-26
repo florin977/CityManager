@@ -25,7 +25,8 @@ int main(int argc, char **argv) {
   get_permissions(&command);
   get_username(&command, argv[4]);
   get_type(&command, argv[5]);
-  execute(&command, argc - 6, &argv[6]);
+  get_args(&command, argc, argv);
+  execute(&command);
 
   return 0;
 }
