@@ -136,15 +136,15 @@ void execute_remove_district(COMMAND *command) {
   }
 
   char symlink_path[256];
-  sprintf(symlink_path, "active_reports-%s", command->district);
+  sprintf(symlink_path, "./active_reports-%s", command->district);
 
   char *rm_args[4] = {"rm", "-rf", command->district, 0};
 
   pid_t pid = fork();
 
   if (pid == 0) { // Child process
-    execvp("rm", rm_args);
     unlink(symlink_path);
+    execvp("rm", rm_args);
   } else if (pid == -1) {
     fprintf(stderr, "Could not fork the remove_district process\n");
     exit(-1);
