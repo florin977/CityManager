@@ -135,6 +135,12 @@ void execute_remove_district(COMMAND *command) {
     exit(-1);
   }
 
+  // Path traversal
+  if (!strstr(command->district, "../") || !strchr(command->district, '/')) {
+    fprintf(stderr, "Womp womp\n");
+    exit(-2);
+  }
+
   char symlink_path[256];
   sprintf(symlink_path, "./active_reports-%s", command->district);
 
