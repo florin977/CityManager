@@ -1,4 +1,8 @@
 #include "../include/command.h"
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h>
 
 void execute_add(COMMAND *command) {
   // Create district directory and change the mode if it exists
@@ -125,6 +129,30 @@ void execute_filter(COMMAND *command) {
   }
 }
 
+void execute_remove_district(COMMAND *command) {
+  if (command->role != MANAGER) {
+    fprintf(stderr, "You do not have permissions for this command\n");
+    exit(-1);
+  }
+
+  char symlink_path[256];
+  sprintf(symlink_path, "active_reports-%s", command->district);
+
+  char *rm_args[4] = {"rm", "-rf", command->district, 0};
+
+  pid_t pid = fork();
+
+  if (pid == 0) { // Child process
+    execvp("rm", rm_args);
+    unlink(symlink_path);
+  } else if (pid == -1) {
+    fprintf(stderr, "Could not fork the remove_district process\n");
+    exit(-1);
+  } else { // Parent process
+    waitpid(pid, NULL, 0);
+  }
+}
+
 // these argv start right after the "--command"; argc is smaller as well.
 void execute(COMMAND *command) {
   switch (command->type) {
@@ -180,7 +208,18 @@ void execute(COMMAND *command) {
     }
     execute_filter(command);
     break;
+
+  case REMOVE_DISTRICT:
+    if (command->argc != 0) {
+      fprintf(stderr,
+              "Invalid argument count for the REMVOE_DISTRICT command\n");
+      exit(-1);
+    }
+    execute_remove_district(command);
+    break;
   }
 
-  write_logged_district(command);
+  if (command->type != REMOVE_DISTRICT) {
+    write_logged_district(command);
+  }
 }

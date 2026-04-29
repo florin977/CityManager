@@ -8,12 +8,6 @@
 #include "report_utils.h"
 #include "types.h"
 
-void execute_add(COMMAND *command);
-void execute_list(COMMAND *command);
-void execute_view(COMMAND *command);
-void execute_remove_report(COMMAND *command);
-void execute_update_threshold(COMMAND *command);
-void execute_filter(COMMAND *command);
 void execute(COMMAND *command);
 
 #endif

@@ -49,6 +49,8 @@ void get_type(COMMAND *command, char *s) {
     command->type = UPDATE_THRESHOLD;
   } else if (!strcmp(s, "--filter")) {
     command->type = FILTER;
+  } else if (!strcmp(s, "--remove_district")) {
+    command->type = REMOVE_DISTRICT;
   } else {
     fprintf(stderr,
             "Invalid command type! Supported commands are: "
