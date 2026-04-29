@@ -136,8 +136,8 @@ void execute_remove_district(COMMAND *command) {
   }
 
   // Path traversal
-  if (!strstr(command->district, "../") || !strchr(command->district, '/')) {
-    fprintf(stderr, "Womp womp\n");
+  if (strstr(command->district, "../") || strchr(command->district, '/')) {
+    fprintf(stderr, "Invalid path\n");
     exit(-2);
   }
 
