@@ -1,4 +1,4 @@
-#include "../include/cli_parser.h"
+#include "../../include/cli_parser.h"
 
 void get_role(COMMAND *command, char *s) {
   if (!strcmp(s, "inspector")) {

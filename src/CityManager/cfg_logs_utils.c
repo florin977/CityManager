@@ -1,4 +1,4 @@
-#include "../include/cfg_logs_utils.h"
+#include "../../include/cfg_logs_utils.h"
 
 void update_parameter(COMMAND *command, char *parameter, char *value) {
   int district_cfg = open_file(command, "district.cfg", "rw-", 0);
@@ -130,6 +130,10 @@ void write_logged_district(COMMAND *command) {
 
   case FILTER:
     strcpy(cmd_type, "filter");
+    break;
+
+  case REMOVE_DISTRICT:
+    strcpy(cmd_type, "remove_district");
     break;
   }
 

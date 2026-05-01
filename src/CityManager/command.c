@@ -1,4 +1,4 @@
-#include "../include/command.h"
+#include "../../include/command.h"
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>

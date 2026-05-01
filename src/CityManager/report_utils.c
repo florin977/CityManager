@@ -1,4 +1,4 @@
-#include "../include/report_utils.h"
+#include "../../include/report_utils.h"
 
 void print_reports_file_info(COMMAND *command) {
   char path[256];

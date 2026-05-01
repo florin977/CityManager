@@ -1,4 +1,4 @@
-#include "../include/sanitization.h"
+#include "../../include/sanitization.h"
 
 int check_command_integrity(char **argv) {
   return (strcmp(argv[5], "add") || strcmp(argv[5], "list") ||
