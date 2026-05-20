@@ -65,13 +65,45 @@ void start_monitor() {
     }
 }
 
-void calculate_scores()
+void calculate_scores(int argc, char **argv) {
+    int pipefd[2];
+    if (pipe(pipefd) == -1) {
+        perror("Pipe failed");
+        exit(-1);
+    }
+
+    // Close read end
+    close(pipefd[0]);
+
+    // Redirect stdout to the pipe's write end
+    dup2(pipefd[1], STDOUT_FILENO);
+    close(pipefd[1]);
+
+    for (int i = 1; i < argc; i++) {
+        pid_t score_pid = fork();
+        if (score_pid == 0) { // In child process of scorer
+            execlp("./CityManager/scorer.sh", "./CityManager/scorer.sh", argv[i], NULL);
+            perror("Error");
+            char buffer[2056];
+
+            int r = 0;
+            while ((r = read(pipefd[0], buffer, 2056)) > 0) {
+                write(STDOUT_FILENO, buffer, r);
+            }
+
+            exit(-1);
+        } else if (score_pid < 0) {
+            close(pipefd[0]);
+            perror("Failed to fork scorer");
+            exit(-1);
+        }
+    }
+}
 
 int main(int argc, char **argv) {
-    start_monitor();
+    calculate_scores(argc, argv);
 
     while (keep_alive) {
-        char command[256];
     }
 
     return 0;
