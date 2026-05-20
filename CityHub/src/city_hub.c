@@ -11,7 +11,9 @@
 void start_monitor() {
     pid_t hub_mon_pid = fork();
 
-    if (hub_mon_pid == 0) { // hub_mon
+    if (hub_mon_pid == 0) {
+        signal(SIGINT, SIG_IGN);
+
         int pipefd[2];
         if (pipe(pipefd) == -1) {
             perror("Pipe failed");
@@ -19,20 +21,22 @@ void start_monitor() {
         }
 
         pid_t monitor_pid = fork();
-        if (monitor_pid == 0) { // monitor
+        if (monitor_pid == 0) {
             close(pipefd[0]);
             dup2(pipefd[1], STDOUT_FILENO);
             close(pipefd[1]);
-            // Run the monitor
+            
             execlp("./MonitorReports/monitor_reports", "monitor_reports", NULL);
             perror("execlp monitor");
             exit(-1);
         } else if (monitor_pid > 0) {
             close(pipefd[1]);
             char length_buffer[5] = {0};
+            
             while (read(pipefd[0], length_buffer, 4) == 4) {
                 length_buffer[4] = '\0';
                 int msg_length = atoi(length_buffer);
+                
                 if (msg_length > 0) {
                     char *msg = malloc(msg_length + 1);
                     int total_read = 0;
@@ -79,15 +83,15 @@ void calculate_scores(int count, char **districts) {
             continue;
         }
         pids[i] = fork();
-        if (pids[i] == 0) { // Scorer child
+        if (pids[i] == 0) {
             close(pipes[i][0]);
             dup2(pipes[i][1], STDOUT_FILENO);
             close(pipes[i][1]);
-            // Close other pipes from previous iterations
+            
             for (int j = 0; j < i; j++) {
                 if (pids[j] != -1) close(pipes[j][0]);
             }
-            // Use ./CityHub/scorer as it's built there
+            
             execlp("./CityHub/scorer", "scorer", districts[i], NULL);
             perror("execlp scorer");
             exit(-1);
@@ -116,6 +120,8 @@ void calculate_scores(int count, char **districts) {
 }
 
 int main() {
+    signal(SIGCHLD, SIG_IGN);
+
     char line[1024];
     printf("CityHub CLI started. Type 'help' for commands.\n");
 
