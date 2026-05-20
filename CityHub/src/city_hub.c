@@ -8,60 +8,71 @@
 
 volatile sig_atomic_t keep_alive = 1;
 
-void execute(int *pipefd) {
-  int pid = fork();
+void start_monitor() {
+    pid_t hub_mon_pid = fork();
 
-  if (pid == 0) { // Child process
-    execlp("../../MonitorReports/monitor_reports",
-           "../../MonitorReports/monitor_reports", NULL);
+    if (hub_mon_pid == 0) { // Child process of hub_monitor
+        int pipefd[2];
+        if (pipe(pipefd) == -1) {
+            perror("Pipe failed");
+            exit(-1);
+        }
 
-    char buffer[1024];
-    char **message;
-    message = malloc(sizeof(char *));
+        pid_t monitor_pid = fork();
+        if (monitor_pid == 0) { // In child process of monitor_reports
+            // Close read end
+            close(pipefd[0]);
 
-    if (message == NULL) {
-      perror(NULL);
-      exit(-1);
+            // Redirect stdout to the pipe's write end
+            dup2(pipefd[1], STDOUT_FILENO);
+            close(pipefd[1]);
+
+            execlp("./MonitorReports/monitor_reports", "./MonitorReports/monitor_reports", NULL);
+
+        } else if (monitor_pid > 0) { // Back inside hub_monitor
+            // Close write end
+            close(pipefd[1]);
+
+            char length_buffer[5] = {0};
+
+            while (read(pipefd[0], length_buffer, 4) == 4) {
+                int msg_length = atoi(length_buffer);
+
+                if (msg_length > 0) {
+                    char *msg = malloc((msg_length + 1) * sizeof(char));
+                    int chars_read = 0;
+
+                    while (chars_read < msg_length) {
+                        int r = read(pipefd[0], msg + chars_read, msg_length - chars_read);
+                        if (r <= 0) {
+                            break;
+                        }
+                        chars_read += r;
+                    }
+
+                    msg[chars_read] = '\0';
+                    printf("MONITOR MESSAGE: %s\n", msg);
+                    free(msg);
+                }
+            }
+            close(pipefd[0]);
+            waitpid(monitor_pid, NULL, 0);
+            exit(0);
+        } else if (hub_mon_pid < 0) {
+            perror("Failed to fork hub_monitor");
+            exit(-1);
+        }
     }
-    message[0] = malloc(1024 * sizeof(char));
-
-    if (message[0] == NULL) {
-      perror(NULL);
-      exit(-1);
-    }
-
-    read(pipefd[1], buffer, 1024);
-    char len[4];
-    sscanf(len, "%4s", buffer);
-    printf("%s\n", len);
-    int message_len = strtol(len, NULL, 10);
-    message[message_len] = 0;
-
-    fprintf(stdout, "%s", message[0]);
-
-  } else if (pid == -1) {
-    fprintf(stderr, "Could not fork the monitor_reports process\n");
-    exit(-1);
-  } else {
-    waitpid(pid, NULL, 0);
-  }
-
-  void start_monitor() {
-    int pipefd[2] = {-1, -1};
-
-    if (pipe(pipefd) == -1) {
-      perror(NULL);
-      exit(-1);
-    }
-
-    dup2(pipefd[1], STDOUT_FILENO);
-  }
 }
 
+void calculate_scores()
+
 int main(int argc, char **argv) {
+    start_monitor();
 
-  while (keep_alive) {
-  }
+    while (keep_alive) {
+        char command[256];
+    }
 
-  return 0;
+    return 0;
 }

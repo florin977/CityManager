@@ -15,13 +15,15 @@ void handle_sigint(int sig) {
   char msg[1024];
   snprintf(msg, 1024,
            "Monitor_pid: SIGINT received, stopping the program...\n");
-  fprintf(stdout, "%4ld%s", strlen(msg), msg);
+  fprintf(stdout, "%04ld%s", strlen(msg), msg);
+  fflush(stdout);
 }
 
 void handle_sigusr1(int sig) {
   char msg[1024];
   snprintf(msg, 1024, "Monitor_pid: A new report has been added.\n");
-  fprintf(stdout, "%4ld%s", strlen(msg), msg);
+  fprintf(stdout, "%04ld%s", strlen(msg), msg);
+  fflush(stdout);
 }
 
 pid_t get_monitor_pid() {
@@ -59,7 +61,8 @@ void start() {
       snprintf(msg, 1024, "Monitor reports already running. PID is: %d\n",
                monitor_pid);
 
-      fprintf(stdout, "%4ld%s", strlen(msg), msg);
+      fprintf(stdout, "%04ld%s", strlen(msg), msg);
+      fflush(stdout);
       exit(-1);
     }
   }
@@ -74,7 +77,8 @@ void stop() {
   } else {
     char msg[1024];
     snprintf(msg, 1024, "Monitor_pid ended successfully.\n");
-    fprintf(stdout, "%4ld%s", strlen(msg), msg);
+    fprintf(stdout, "%04ld%s", strlen(msg), msg);
+    fflush(stdout);
   }
 }
 
