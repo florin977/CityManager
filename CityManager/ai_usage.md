@@ -1,5 +1,5 @@
 # AI usage for the "city manager" project
-
+## PHASE 1
 I used Gemini 3.1 Pro for this project.
 The first prompt that I wrote was:
 "You are an expert engineer and programmer in the C99 language and operating systems. I want you to write a function with the following form:
@@ -28,3 +28,10 @@ inspector can also be anything (a username, mostly)
 timestamp is of type time_t in my implementation."
 
 The result was already good, so I went with it after carefully reviewing it.
+
+## PAHSE 2
+Not a lot of AI usage in this phase, I think I used it to correct a few bugs in the code, but not major ones.
+
+## PHASE 3
+In this phase I used Gemini to brainstorm ideas about the calculate_scores. I first wanted to use a shell script and pipes to get the Inspector name and severity of the report and then use that to calculate the score, but I found out that it was not that good of an idea due to the difficulty/having to also use a .sh file in an only C project. I then asked Gemini for a better solution and it suggested calculating everything in C, which is what I ended up doing. I also used Gemini to help me with the implementation, it came up with the idea of using lists to store the inspectors and their scores. it also suggested using 64 pair of pipes to calculate the scores in parallel. It was able to give me a working implementation, modifying my one pair of pipes implementation to the 64 pair of pipes one.
+It also generated the CLI (meaning the actual printf("[HUB_MON]") and so on.)
