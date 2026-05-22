@@ -12,7 +12,11 @@ void start_monitor() {
     pid_t hub_mon_pid = fork();
 
     if (hub_mon_pid == 0) {
-        signal(SIGINT, SIG_IGN);
+        struct sigaction sa_ign;
+        sa_ign.sa_handler = SIG_IGN;
+        sigemptyset(&sa_ign.sa_mask);
+        sa_ign.sa_flags = 0;
+        sigaction(SIGINT, &sa_ign, NULL);
 
         int pipefd[2];
         if (pipe(pipefd) == -1) {
@@ -39,6 +43,8 @@ void start_monitor() {
                 
                 if (msg_length > 0) {
                     char *msg = malloc(msg_length + 1);
+                    if (!msg) break;
+                    
                     int total_read = 0;
                     while (total_read < msg_length) {
                         int r = read(pipefd[0], msg + total_read, msg_length - total_read);
@@ -120,7 +126,11 @@ void calculate_scores(int count, char **districts) {
 }
 
 int main() {
-    signal(SIGCHLD, SIG_IGN);
+    struct sigaction sa_chld;
+    sa_chld.sa_handler = SIG_IGN;
+    sigemptyset(&sa_chld.sa_mask);
+    sa_chld.sa_flags = 0;
+    sigaction(SIGCHLD, &sa_chld, NULL);
 
     char line[1024];
     printf("CityHub CLI started. Type 'help' for commands.\n");

@@ -1,5 +1,4 @@
 # AI usage for the "city manager" project
-
 ## PHASE 1
 I used Gemini 3.1 Pro for this project.
 The first prompt that I wrote was:
@@ -29,3 +28,7 @@ inspector can also be anything (a username, mostly)
 timestamp is of type time_t in my implementation."
 
 The result was already good, so I went with it after carefully reviewing it.
+
+## PHASE 2
+AI usage in this phase was minimal, primarily used for debugging specific logic errors/bugs. 
+(Forgot to create this file in the actual phase 2 commit, but I am adding it now in the phase 3 commit.)

@@ -144,14 +144,16 @@ void get_new_report_data(COMMAND *command) {
 
   printf("%d\n", command->report_data.report_id);
   printf("Please enter the report data:\nX: ");
-  if (scanf("%f", &command->report_data.coords.lat) != 1) {
-    fprintf(stderr, "Invalid latitude\n");
+  if (scanf("%f", &command->report_data.coords.lat) != 1 || 
+      command->report_data.coords.lat < -90 || command->report_data.coords.lat > 90) {
+    fprintf(stderr, "Invalid latitude. Must be between -90 and 90.\n");
     exit(-1);
   }
 
   printf("Y: ");
-  if (scanf("%f", &command->report_data.coords.lng) != 1) {
-    fprintf(stderr, "Invalid longitutde\n");
+  if (scanf("%f", &command->report_data.coords.lng) != 1 ||
+      command->report_data.coords.lng < -180 || command->report_data.coords.lng > 180) {
+    fprintf(stderr, "Invalid longitutde. Must be between -180 and 180.\n");
     exit(-1);
   }
 
@@ -161,9 +163,18 @@ void get_new_report_data(COMMAND *command) {
     exit(-1);
   }
 
+  if (strcmp(command->report_data.issue_category, "road") != 0 &&
+      strcmp(command->report_data.issue_category, "lighting") != 0 &&
+      strcmp(command->report_data.issue_category, "flooding") != 0 &&
+      strcmp(command->report_data.issue_category, "other") != 0) {
+    fprintf(stderr, "Error: Invalid category. Allowed: road, lighting, flooding, other.\n");
+    exit(-1);
+  }
+
   printf("Severity lvel(1/2/3): ");
-  if (scanf("%d", &command->report_data.severity_level) != 1) {
-    fprintf(stderr, "Invalid severity level\n");
+  if (scanf("%d", &command->report_data.severity_level) != 1 ||
+      command->report_data.severity_level < 1 || command->report_data.severity_level > 3) {
+    fprintf(stderr, "Invalid severity level. Must be 1, 2, or 3.\n");
     exit(-1);
   }
   // Consume newline

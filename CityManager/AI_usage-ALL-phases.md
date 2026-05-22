@@ -29,3 +29,15 @@ inspector can also be anything (a username, mostly)
 timestamp is of type time_t in my implementation."
 
 The result was already good, so I went with it after carefully reviewing it.
+
+## PHASE 2
+AI usage in this phase was minimal, primarily used for debugging specific logic errors/bugs.
+
+## PHASE 3
+In this phase, I used Gemini to brainstorm the implementation of `calculate_scores`. My initial idea was a hybrid Bash/C solution, but I learned that a pure C implementation for the `scorer` was more robust for a systems programming project. 
+
+The AI suggested using a linked list in C to aggregate scores for an unknown number of inspectors per district. It also helped refactor my single-pipe implementation into a parallel version using an array of 64 pipes to handle multiple districts concurrently.
+
+It also wrote the actual CLI (so a few printf statements) and checked the read_report function to make sure it correctly handled the format (it checks that the category is a specific string, instead of any string).
+
+Finally, I used an agentic AI to audit the code. It correctly identified a potential path traversal vulnerability in the `scorer` and a string termination risk with `strncpy`. I fixed these by implementing alphanumeric validation for district names and a manual null-termination loop. I also used the AI to automate the generation of the final test data (5 reports across 2 districts) to verify that all components (Hub, Manager, and Monitor) communicated correctly.
